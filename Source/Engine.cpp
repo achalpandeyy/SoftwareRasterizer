@@ -1,5 +1,7 @@
 #include "Engine.h"
 
+#define WIREFRAME 0
+
 #include "glm/glm/gtc/matrix_transform.hpp"
 
 // TODO(achal): Swap macro and ceil function.
@@ -186,6 +188,7 @@ void Engine::Initialize()
 {
     f32 half_side_length = 0.5f;
 
+    // In Object Space.
     cube.vertices =
     {
         { -half_side_length, -half_side_length, -half_side_length },
@@ -199,7 +202,26 @@ void Engine::Initialize()
         { half_side_length, half_side_length, half_side_length },
     };
 
-#if 0
+#if WIREFRAME
+    cube.indices = 
+        {
+            0, 1,
+            1, 2,
+            2, 3,
+            3, 0,
+
+            3, 4,
+            4, 7,
+            7, 2,
+
+            5, 4,
+            5, 6,
+            6, 7,
+
+            6, 1,
+            5, 0
+        };
+#else
     cube.indices = 
     {
         3, 4, 2,
@@ -214,24 +236,6 @@ void Engine::Initialize()
         1, 2, 7
     };
 #endif
-    cube.indices = 
-    {
-        0, 1,
-        1, 2,
-        2, 3,
-        3, 0,
-
-        3, 4,
-        4, 7,
-        7, 2,
-
-        5, 4,
-        5, 6,
-        6, 7,
-
-        6, 1,
-        5, 0
-    };
 }
 
 void Engine::SetupFramebuffer(int width, int height, int bytes_per_pixel, int pitch, void* pixels)
@@ -282,52 +286,83 @@ void Engine::UpdateAndRender()
     f32 half_width = (f32)framebuffer.width / 2.f;
     f32 half_height = (f32)framebuffer.height / 2.f;
 
+#if WIREFRAME
     // Draw the damn lined cube
     for (u32 i = 0; i < cube.indices.size() / 2; ++i)
     {
         size_t idx0 = cube.indices[2 * i];
         size_t idx1 = cube.indices[2 * i + 1];
 
+        // TODO(achal): This is a lot of wasted effort, essentially I'm transforming the same vertex twice.
         glm::vec3 v0 = cube.vertices[idx0];
-        v0 = glm::vec3(rotate * glm::vec4(v0, 1.f));
-        v0 += glm::vec3(0.f, 0.f, 10.f);
 
-        v0.x = (v0.x + 1.f) * half_width;
-        v0.y = (-v0.y + 1.f) * half_height;
+        // Object Space to World Space
+        v0 = glm::vec3(rotate * glm::vec4(v0, 1.f));
+        v0 += glm::vec3(0.f, 0.f, -2.f);
+
+        // World Space to Screen Space
+        v0.x = ((v0.x / v0.z) + 1.f) * half_width;
+        v0.y = ((-v0.y / v0.z) + 1.f) * half_height;
 
         glm::vec3 v1 = cube.vertices[idx1];
-        v1 = glm::vec3(rotate * glm::vec4(v1, 1.f));;
-        v1 += glm::vec3(0.f, 0.f, 10.f);
 
-        v1.x = (v1.x + 1.f) * half_width;
-        v1.y = (-v1.y + 1.f) * half_height;
+        // Object Space to World Space
+        v1 = glm::vec3(rotate * glm::vec4(v1, 1.f));;
+        v1 += glm::vec3(0.f, 0.f, -2.f);
+
+        // World Space to Screen Space
+        v1.x = ((v1.x / v1.z) + 1.f) * half_width;
+        v1.y = ((-v1.y / v1.z) + 1.f) * half_height;
 
         // TODO(achal): assert that raster_v0 and raster_v1 are always positive.
         // NOTE(achal): Raster Space: [0, width] x [0, height]
         // TODO(achal): Can I put it into a matrix transfrom and probably combine it with other transforms, like
         // from World space to NDC, for example??
-        glm::vec2 v0_2dim(v0.x, v0.y);
-        glm::vec2 v1_2dim(v1.x, v1.y);
-        DrawLine(v0_2dim, v1_2dim, framebuffer, 0xFFFFFFFF);
+        glm::vec2 raster_v0(v0.x, v0.y);
+        glm::vec2 raster_v1(v1.x, v1.y);
+        DrawLine(raster_v0, raster_v1, framebuffer, 0xFFFFFFFF);
     }
-
-    #if 0
-    // Draw the damn cube
-    for (u32 i = 0; i < cube.index_count / 3; ++i)
+#else
+    for (int i = 0; i < cube.indices.size() / 3; ++i)
     {
         size_t idx0 = cube.indices[3 * i];
         size_t idx1 = cube.indices[3 * i + 1];
         size_t idx2 = cube.indices[3 * i + 2];
 
-        Vector3f v0 = cube.vertices[idx0];
-        Vector3f v1 = cube.vertices[idx1];
-        Vector3f v2 = cube.vertices[idx2];
+        glm::vec3 v0 = cube.vertices[idx0];
 
-        Vector2f raster_v0 = ToRasterSpace(v0, half_width, half_height);
-        Vector2f raster_v1 = ToRasterSpace(v1, half_width, half_height);
-        Vector2f raster_v2 = ToRasterSpace(v2, half_width, half_height);
+        // Object Space to World Space
+        v0 = glm::vec3(rotate * glm::vec4(v0, 1.f));
+        v0 += glm::vec3(0.f, 0.f, -2.f);
+
+        // World Space to Screen Space
+        glm::vec2 raster_v0;
+        raster_v0.x = ((v0.x / v0.z) + 1.f) * half_width;
+        raster_v0.y = ((-v0.y / v0.z) + 1.f) * half_height;
+
+        glm::vec3 v1 = cube.vertices[idx1];
+
+        // Object Space to World Space
+        v1 = glm::vec3(rotate * glm::vec4(v1, 1.f));
+        v1 += glm::vec3(0.f, 0.f, -2.f);
+
+        // World Space to Screen Space
+        glm::vec2 raster_v1;
+        raster_v1.x = ((v1.x / v1.z) + 1.f) * half_width;
+        raster_v1.y = ((-v1.y / v1.z) + 1.f) * half_height;
+
+        glm::vec3 v2 = cube.vertices[idx2];
+
+        // Object Space to World Space
+        v2 = glm::vec3(rotate * glm::vec4(v2, 1.f));
+        v2 += glm::vec3(0.f, 0.f, -2.f);
+
+        // World Space to Screen Space
+        glm::vec2 raster_v2;
+        raster_v2.x = ((v2.x / v2.z) + 1.f) * half_width;
+        raster_v2.y = ((-v2.y / v2.z) + 1.f) * half_height;
 
         DrawTriangle(raster_v0, raster_v1, raster_v2, framebuffer, 0xFFFFFFFF);
     }
-    #endif
+#endif
 }
