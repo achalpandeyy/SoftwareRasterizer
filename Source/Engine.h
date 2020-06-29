@@ -38,13 +38,12 @@ struct Button
 struct Vertex
 {
     glm::vec3 position;
-    glm::vec2 texture_coordinate;
+    glm::vec2 texture_coordinates;
 };
 
 struct IndexedTriangleList
 {
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec2> texture_coordinates;
+    std::vector<Vertex> vertices;
     std::vector<size_t> indices;
 };
 
