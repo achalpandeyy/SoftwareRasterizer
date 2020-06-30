@@ -1,6 +1,5 @@
 #include "Engine.h"
 
-#define WIREFRAME 0
 #define TEXTURE_WRAP 1
 
 #include "glm/glm/gtc/matrix_transform.hpp"
@@ -11,12 +10,7 @@
 #include <utility>
 
 /*
-    TODO(achal): All of the drawing functions below take their coordinates in raster space and as a result
-    should take integral vectors. They represent pixels after all! I currently don't want to track all the
-    floating-point math and see that it is safely converted to ints. So I'm currently making them all floats.
-    I will see to it later.
-
-    DrawLine should be integer bresenham.
+    DrawLine should be integer bresenham. (I think!)
 
     TODO(achal): All of the triangle drawing routines below can do with 2D positions, but still I'm passing
     3D position because they have texture coordinates associated with them in the struct "Vertex". So essentially,
@@ -29,6 +23,10 @@
     The pixel (0, 0) includes the _area_ [0, 1) x [0, 1). (0, 0)th pixel is the one
     at the top-left corner.
     Reference: https://docs.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-coordinates
+
+    All of the following drawing functions take input in raster space, but that doesn't mean that
+    they should have integral coordinates. We use the aforementioned rasterization rules to get
+    the exact (integral) pixel coordinates on the fly.
 */
 
 void DrawLine(glm::vec2& v0, glm::vec2& v1, Framebuffer& framebuffer, u32 color)
@@ -76,6 +74,10 @@ void DrawLine(glm::vec2& v0, glm::vec2& v1, Framebuffer& framebuffer, u32 color)
     }
 }
 
+// TODO(achal): Maybe remove the following solid color triangle drawing routines in favour of a single
+// triangle routine which is smart enough to know that when to use a (supplied) solid color and when
+// to do a texture lookup??
+#if 0
 // NOTE(achal): Vertex Order Assumption:
 //
 //        v0
@@ -143,7 +145,6 @@ void DrawFlatTopTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, F
     }
 }
 
-// TODO(achal): DrawFlatTopTriangle & DrawFlatBottomTriangle seems suspiciously similar, collapse 'em into one??
 // NOTE(achal): This takes shit is raster space.
 void DrawTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, u32 color)
 {
@@ -193,7 +194,9 @@ void DrawTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuf
         }
     }
 }
+#endif
 
+// TODO(achal): DrawFlatTopTriangleTex & DrawFlatBottomTriangleTex seems suspiciously similar, collapse 'em into one??
 void DrawFlatBottomTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, const Texture& texture)
 {
     f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
@@ -324,6 +327,8 @@ void DrawTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Frame
 //
 // Normal of the triangle is given by: (v1 - v0) x (v2 - v0)
 // Cull the triangle when face normal points in the same direction as view vector (any_point_on_the_triangle - focal_point).
+
+// TODO(achal): Make helper function for hard-coded skinned cube and "normal" cube?
 void Engine::Initialize()
 {
     f32 half_side_length = 0.5f;
@@ -342,7 +347,7 @@ void Engine::Initialize()
         { half_side_length, half_side_length, half_side_length },       // 7
 
         { -half_side_length, half_side_length, -half_side_length },     // 8 (5")
-        { half_side_length, half_side_length, -half_side_length },     // 9 (6')
+        { half_side_length, half_side_length, -half_side_length },      // 9 (6')
 
         { -half_side_length, half_side_length, -half_side_length },     // 10 (5')
         { -half_side_length, -half_side_length, -half_side_length },    // 11 (0')
@@ -412,27 +417,6 @@ void Engine::Initialize()
         cube.vertices[i].texture_coordinates = texture_coordinates[i];
     }
 
-#if WIREFRAME
-    cube.indices = 
-        {
-            0, 1,
-            1, 2,
-            2, 3,
-            3, 0,
-
-            3, 4,
-            4, 7,
-            7, 2,
-
-            5, 4,
-            5, 6,
-            6, 7,
-
-            6, 1,
-            5, 0
-        };
-#else
-
     // Assemble your cube in such a way that all the face normals face outside -- this constraint 
     // gives you the winding of the triangles.
     cube.indices = 
@@ -455,7 +439,6 @@ void Engine::Initialize()
         3, 12, 2,
         12, 13, 2
     };
-#endif
 }
 
 void Engine::SetupFramebuffer(int width, int height, int channel_count, int pitch, void* pixels)
@@ -474,10 +457,11 @@ inline f32 WrapAngle(f32 angle)
     return modded_angle > PI32 ? modded_angle - 2.f * PI32 : modded_angle;
 }
 
-void Engine::UpdateAndRender()
+void Engine::Render()
 {
-    // TODO(achal): Is my rotation speed too high?
+    // TODO(achal): Is my rotation speed too high or maybe I was just cycling through a lot frames earlier?
 
+    // Take user input
     f32 angular_speed = PI32 / 10.f;
     f32 dt = 1.f / 60.f;
     f32 dtheta = angular_speed * dt;
@@ -495,75 +479,41 @@ void Engine::UpdateAndRender()
         theta_z = WrapAngle(theta_z + dtheta);
     }
 
-    glm::mat4 rotate = glm::rotate(glm::mat4(1.f), theta_x, glm::vec3(1.f, 0.f, 0.f));
-    rotate = glm::rotate(rotate, theta_y, glm::vec3(0.f, 1.f, 0.f));
-    rotate = glm::rotate(rotate, theta_z, glm::vec3(0.f, 0.f, 1.f));
+    glm::mat4 object_to_world(1.f);
+    object_to_world = glm::translate(object_to_world, glm::vec3(0.f, 0.f, -2.f));
+    object_to_world = glm::rotate(object_to_world, theta_z, glm::vec3(0.f, 0.f, 1.f));
+    object_to_world = glm::rotate(object_to_world, theta_y, glm::vec3(0.f, 1.f, 0.f));
+    object_to_world = glm::rotate(object_to_world, theta_x, glm::vec3(1.f, 0.f, 0.f));
 
     f32 half_width = (f32)framebuffer.width / 2.f;
     f32 half_height = (f32)framebuffer.height / 2.f;
 
-#if WIREFRAME
-    // Draw the damn lined cube
-    for (u32 i = 0; i < cube.indices.size() / 2; ++i)
+    // Transform vertices to World Space
+    std::vector<Vertex> transformed_vertices(cube.vertices.size());
+    for (int i = 0; i < cube.vertices.size(); ++i)
     {
-        size_t idx0 = cube.indices[2 * i];
-        size_t idx1 = cube.indices[2 * i + 1];
-
-        // TODO(achal): This is a lot of wasted effort, essentially I'm transforming the same vertex twice.
-        glm::vec3 v0 = cube.vertices[idx0];
-
-        // Object Space to World Space
-        v0 = glm::vec3(rotate * glm::vec4(v0, 1.f));
-        v0 += glm::vec3(0.f, 0.f, -2.f);
-
-        // World Space to Screen Space
-        v0.x = ((v0.x / v0.z) + 1.f) * half_width;
-        v0.y = ((-v0.y / v0.z) + 1.f) * half_height;
-
-        glm::vec3 v1 = cube.vertices[idx1];
-
-        // Object Space to World Space
-        v1 = glm::vec3(rotate * glm::vec4(v1, 1.f));;
-        v1 += glm::vec3(0.f, 0.f, -2.f);
-
-        // World Space to Screen Space
-        v1.x = ((v1.x / v1.z) + 1.f) * half_width;
-        v1.y = ((-v1.y / v1.z) + 1.f) * half_height;
-
-        // TODO(achal): assert that raster_v0 and raster_v1 are always positive.
-        // NOTE(achal): Raster Space: [0, width] x [0, height]
-        // TODO(achal): Can I put it into a matrix transfrom and probably combine it with other transforms, like
-        // from World space to NDC, for example??
-        glm::vec2 raster_v0(v0.x, v0.y);
-        glm::vec2 raster_v1(v1.x, v1.y);
-        DrawLine(raster_v0, raster_v1, framebuffer, 0xFFFFFFFF);
+        transformed_vertices[i].position = glm::vec3(object_to_world * glm::vec4(cube.vertices[i].position, 1.f));
+        transformed_vertices[i].texture_coordinates = cube.vertices[i].texture_coordinates;
     }
-#else
-    u32 colors[4] = {0xFFFFFFFF, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF};
+
+    // Assemble Triangles
     for (int i = 0; i < cube.indices.size() / 3; ++i)
     {
         size_t idx0 = cube.indices[3 * i];
         size_t idx1 = cube.indices[3 * i + 1];
         size_t idx2 = cube.indices[3 * i + 2];
 
-        // Object Space to World (View) Space
-        Vertex v0 = cube.vertices[idx0];
-        v0.position = glm::vec3(rotate * glm::vec4(v0.position, 1.f));
-        v0.position += glm::vec3(0.f, 0.f, -2.f);
-
-        Vertex v1 = cube.vertices[idx1];
-        v1.position = glm::vec3(rotate * glm::vec4(v1.position, 1.f));
-        v1.position += glm::vec3(0.f, 0.f, -2.f);
-
-        Vertex v2 = cube.vertices[idx2];
-        v2.position = glm::vec3(rotate * glm::vec4(v2.position, 1.f));
-        v2.position += glm::vec3(0.f, 0.f, -2.f);
+        Vertex v0 = transformed_vertices[idx0];
+        Vertex v1 = transformed_vertices[idx1];
+        Vertex v2 = transformed_vertices[idx2];
 
         b32 should_cull = glm::dot(v0.position, glm::cross(v1.position - v0.position, v2.position - v0.position)) >= 0.f;
 
         if (!should_cull)
         {
             // World (View) Space to Screen Space
+
+            // TODO(achal): Pull this repeated projection code out!
             v0.position.x = ((v0.position.x / -v0.position.z) + 1.f) * half_width;
             v0.position.y = ((-v0.position.y / -v0.position.z) + 1.f) * half_height;
 
@@ -573,9 +523,7 @@ void Engine::UpdateAndRender()
             v2.position.x = ((v2.position.x / -v2.position.z) + 1.f) * half_width;
             v2.position.y = ((-v2.position.y / -v2.position.z) + 1.f) * half_height;
 
-            // DrawTriangle(v0, v1, v2, framebuffer, colors[i % 4]);
             DrawTriangleTex(v0, v1, v2, framebuffer, texture);
         }
     }
-#endif
 }

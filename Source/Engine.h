@@ -116,8 +116,8 @@ struct Texture
 struct Engine
 {
     void Initialize();
-    void SetupFramebuffer(int width, int height, int bytes_per_pixel, int pitch, void* pixels);
-    void UpdateAndRender();
+    void SetupFramebuffer(int width, int height, int channel_count, int pitch, void* pixels);
+    void Render();
 
     Framebuffer framebuffer;
     IndexedTriangleList cube;

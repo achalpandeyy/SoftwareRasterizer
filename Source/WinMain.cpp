@@ -172,7 +172,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, PSTR command_l
         engine.buttons[1].pressed = global_rotate_y_key_pressed;
         engine.buttons[2].pressed = global_rotate_z_key_pressed;
 
-        engine.UpdateAndRender();
+        engine.Render();
 
         Win32DisplayImage(win32_framebuffer, GetDC(window));
 
