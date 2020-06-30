@@ -1,6 +1,7 @@
 #include "Engine.h"
 
 #define WIREFRAME 0
+#define TEXTURE_WRAP 1
 
 #include "glm/glm/gtc/matrix_transform.hpp"
 #include "stb_image/stb_image.h"
@@ -25,7 +26,7 @@
 
 /*
     NOTE(achal): I'm using Direct3D's Coordinate System and Rasterization Rules.
-    The pixel (0, 0) includes the _area_ [0, 1) x [0, 1). "Center" of the pixel (0, 0) is
+    The pixel (0, 0) includes the _area_ [0, 1) x [0, 1). (0, 0)th pixel is the one
     at the top-left corner.
     Reference: https://docs.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-coordinates
 */
@@ -195,51 +196,34 @@ void DrawTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuf
 
 void DrawFlatBottomTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, const Texture& texture)
 {
-    #if 0
-    f32 dy = v2_pos.y - v0_pos.y;
-    
-    glm::vec2 dv1_v0_pos = (v1_pos - v0_pos) / dy;
-    glm::vec2 dv1_v0_tex = (v1_tex - v0_tex) / dy;
+    f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
 
-    glm::vec2 dv2_v0_pos = (v2_pos - v0_pos) / dy;
-    glm::vec2 dv2_v0_tex = (v2_tex - v0_tex) / dy;
-
-    glm::vec2 right_interpolant_pos = ;
-    glm::vec2 right_interpolant_tex = ;
-    #endif
-
-
-    f32 rcp_slope_1_0 = (f32)(v1.position.x - v0.position.x) / (f32)(v1.position.y - v0.position.y);
-    f32 rcp_slope_2_0 = (f32)(v2.position.x - v0.position.x) / (f32)(v2.position.y - v0.position.y);
+    Vertex dv10dy = (v1 - v0) * rcp_dy;
+    Vertex dv20dy = (v2 - v0) * rcp_dy;
 
     int pixel_y_start = (int)std::ceilf(v0.position.y - 0.5f);
-    int pixel_y_end = (int)std::ceilf(v1.position.y - 0.5f);
-
-    glm::vec2 tex_edge_step_l = (v1.texture_coordinates - v0.texture_coordinates) / (v1.position.y - v0.position.y);
-    glm::vec2 tex_edge_step_r = (v2.texture_coordinates - v0.texture_coordinates) / (v2.position.y - v0.position.y);
+    int pixel_y_end = (int)std::ceilf(v2.position.y - 0.5f);
 
     // Add pre-step
-    glm::vec2 tex_edge_l = v0.texture_coordinates + tex_edge_step_l * ((f32)pixel_y_start + 0.5f - v0.position.y);
-    glm::vec2 tex_edge_r = v0.texture_coordinates + tex_edge_step_r * ((f32)pixel_y_start + 0.5f - v0.position.y);
+    Vertex left_edge_interpolant = v0 + dv10dy * ((f32)pixel_y_start + 0.5f - v0.position.y);
+    Vertex right_edge_interpolant = v0 + dv20dy * ((f32)pixel_y_start + 0.5f - v0.position.y);
 
     for (int pixel_y = pixel_y_start; pixel_y < pixel_y_end; ++pixel_y,
-        tex_edge_l += tex_edge_step_l, tex_edge_r += tex_edge_step_r)
+        left_edge_interpolant += dv10dy, right_edge_interpolant += dv20dy)
     {
-        f32 point_x1 = rcp_slope_1_0 * (f32(pixel_y) + 0.5f - v1.position.y) + v1.position.x;
-        f32 point_x2 = rcp_slope_2_0 * (f32(pixel_y) + 0.5f - v2.position.y) + v2.position.x;
+        int pixel_x_start = (int)std::ceilf(left_edge_interpolant.position.x - 0.5f);
+        int pixel_x_end = (int)std::ceilf(right_edge_interpolant.position.x - 0.5f);
 
-        int pixel_x_start = (int)std::ceilf(point_x1 - 0.5f);
-        int pixel_x_end = (int)std::ceilf(point_x2 - 0.5f);
+        glm::vec2 dtexdx = (right_edge_interpolant.texture_coordinates - left_edge_interpolant.texture_coordinates)
+            / (right_edge_interpolant.position.x - left_edge_interpolant.position.x);
 
-        glm::vec2 tex_scan_step = (tex_edge_r - tex_edge_l) / (point_x2 - point_x1);
+        glm::vec2 scan_tex_interpolant = left_edge_interpolant.texture_coordinates + dtexdx
+            * ((f32)pixel_x_start + 0.5f - left_edge_interpolant.position.x);
 
-        // Add pre-step
-        glm::vec2 tex_scan = tex_edge_l + tex_scan_step * ((f32)pixel_x_start + 0.5f - point_x1);
-
-        for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x, tex_scan += tex_scan_step)
+        for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x, scan_tex_interpolant += dtexdx)
         {
             u32* pixel = framebuffer.GetPixelPointer(pixel_x, pixel_y);
-            u32 texel = texture.GetTexel(tex_scan.x, tex_scan.y);
+            u32 texel = texture.GetTexel(scan_tex_interpolant.x, scan_tex_interpolant.y, TEXTURE_WRAP);
             *pixel = texel;
         }
     }
@@ -247,37 +231,34 @@ void DrawFlatBottomTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex&
 
 void DrawFlatTopTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, const Texture& texture)
 {
-    f32 rcp_slope_2_0 = (f32)(v2.position.x - v0.position.x) / (f32)(v2.position.y - v0.position.y);
-    f32 rcp_slope_2_1 = (f32)(v2.position.x - v1.position.x) / (f32)(v2.position.y - v1.position.y);
+    f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
+
+    Vertex dv20dy = (v2 - v0) * rcp_dy;
+    Vertex dv21dy = (v2 - v1) * rcp_dy;
 
     int pixel_y_start = (int)std::ceilf(v0.position.y - 0.5f);
     int pixel_y_end = (int)std::ceilf(v2.position.y - 0.5f);
 
-    glm::vec2 tex_edge_step_l = (v2.texture_coordinates - v0.texture_coordinates) / (v2.position.y - v0.position.y);
-    glm::vec2 tex_edge_step_r = (v2.texture_coordinates - v1.texture_coordinates) / (v2.position.y - v1.position.y);
-
     // Add pre-step
-    glm::vec2 tex_edge_l = v0.texture_coordinates + tex_edge_step_l * ((f32)pixel_y_start + 0.5f - v0.position.y);
-    glm::vec2 tex_edge_r = v1.texture_coordinates + tex_edge_step_r * ((f32)pixel_y_start + 0.5f - v1.position.y);
+    Vertex left_edge_interpolant = v0 + dv20dy * ((f32)pixel_y_start + 0.5f - v0.position.y);
+    Vertex right_edge_interpolant = v1 + dv21dy * ((f32)pixel_y_start + 0.5f - v1.position.y);
 
     for (int pixel_y = pixel_y_start; pixel_y < pixel_y_end; ++pixel_y,
-        tex_edge_l += tex_edge_step_l, tex_edge_r += tex_edge_step_r)
+        left_edge_interpolant += dv20dy, right_edge_interpolant += dv21dy)
     {
-        f32 point_x0 = rcp_slope_2_0 * (f32(pixel_y) + 0.5f - v0.position.y) + v0.position.x;
-        f32 point_x1 = rcp_slope_2_1 * (f32(pixel_y) + 0.5f - v1.position.y) + v1.position.x;
+        int pixel_x_start = (int)std::ceilf(left_edge_interpolant.position.x - 0.5f);
+        int pixel_x_end = (int)std::ceilf(right_edge_interpolant.position.x - 0.5f);
 
-        int pixel_x_start = (int)std::ceilf(point_x0 - 0.5f);
-        int pixel_x_end = (int)std::ceilf(point_x1 - 0.5f);
+        glm::vec2 dtexdx = (right_edge_interpolant.texture_coordinates - left_edge_interpolant.texture_coordinates)
+            / (right_edge_interpolant.position.x - left_edge_interpolant.position.x);
 
-        glm::vec2 tex_scan_step = (tex_edge_r - tex_edge_l) / (point_x1 - point_x0);
+        glm::vec2 scan_tex_interpolant = left_edge_interpolant.texture_coordinates + dtexdx
+            * ((f32)pixel_x_start + 0.5f - left_edge_interpolant.position.x);
 
-        // Add pre-step
-        glm::vec2 tex_scan = tex_edge_l + tex_scan_step * ((f32)pixel_x_start + 0.5f - point_x0);
-
-        for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x, tex_scan += tex_scan_step)
+        for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x, scan_tex_interpolant += dtexdx)
         {
             u32* pixel = framebuffer.GetPixelPointer(pixel_x, pixel_y);
-            u32 texel = texture.GetTexel(tex_scan.x, tex_scan.y);
+            u32 texel = texture.GetTexel(scan_tex_interpolant.x, scan_tex_interpolant.y, TEXTURE_WRAP);
             *pixel = texel;
         }
     }
@@ -348,41 +329,88 @@ void Engine::Initialize()
     f32 half_side_length = 0.5f;
 
     // In Object Space.
-    glm::vec3 vertex_positions[8] =
+    glm::vec3 vertex_positions[14] =
     {
-        { -half_side_length, -half_side_length, -half_side_length },
-        { half_side_length, -half_side_length, -half_side_length },
-        { half_side_length, -half_side_length, half_side_length },
-        { -half_side_length, -half_side_length, half_side_length },
+        { -half_side_length, -half_side_length, -half_side_length },    // 0
+        { half_side_length, -half_side_length, -half_side_length },     // 1
+        { half_side_length, -half_side_length, half_side_length },      // 2
+        { -half_side_length, -half_side_length, half_side_length },     // 3
 
-        { -half_side_length, half_side_length, half_side_length },
-        { -half_side_length, half_side_length, -half_side_length },
-        { half_side_length, half_side_length, -half_side_length },
-        { half_side_length, half_side_length, half_side_length },
+        { -half_side_length, half_side_length, half_side_length },      // 4
+        { -half_side_length, half_side_length, -half_side_length },     // 5
+        { half_side_length, half_side_length, -half_side_length },      // 6
+        { half_side_length, half_side_length, half_side_length },       // 7
+
+        { -half_side_length, half_side_length, -half_side_length },     // 8 (5")
+        { half_side_length, half_side_length, -half_side_length },     // 9 (6')
+
+        { -half_side_length, half_side_length, -half_side_length },     // 10 (5')
+        { -half_side_length, -half_side_length, -half_side_length },    // 11 (0')
+
+        { -half_side_length, -half_side_length, -half_side_length },    // 12 (0")
+        { half_side_length, -half_side_length, -half_side_length },     // 13 (1')
     };
 
-    glm::vec2 texture_coordinates[8] =
+#if 0
+    // For sauron.png
+    glm::vec2 texture_coordinates[14] =
     {
-        { 0.f, 1.f },
-        { 1.f, 1.f },
-        { 0.f, 1.f },
-        { 1.f, 1.f },
+        { 0.f, 2.f },   // 0
+        { 3.f, 2.f },   // 1
+        { 2.f, 2.f },   // 2
+        { 1.f, 2.f },   // 3
 
-        { 1.f, 0.f },
-        { 0.f, 0.f },
-        { 1.f, 0.f },
-        { 0.f, 0.f }
+        { 1.f, 1.f },   // 4
+        { 0.f, 1.f },   // 5
+        { 3.f, 1.f },   // 6
+        { 2.f, 1.f },   // 7
+
+        { 1.f, 0.f },   // 8 (5")
+        { 2.f, 0.f },   // 9 (6')
+
+        { 4.f, 1.f },   // 10 (5')
+        { 4.f, 2.f },   // 11 (0')
+
+        { 1.f, 3.f },   // 12 (0")
+        { 2.f, 3.f }    // 13 (1')
     };
 
-    cube.vertices.resize(8);
+    // NOTE(achal): Freeing texture memory is not necessary for now.
+    texture.texels = (u8*)stbi_load("../sauron.png", &texture.width, &texture.height, &texture.channel_count, 0);
+#else
+    // For dice_skin.png
+    glm::vec2 texture_coordinates[14] =
+    {
+        { 2.f / 3.f, 0.f / 4.f },   // 0
+        { 2.f / 3.f, 3.f / 4.f },   // 1
+        { 2.f / 3.f, 2.f / 4.f },   // 2
+        { 2.f / 3.f, 1.f / 4.f },   // 3
+
+        { 1.f / 3.f, 1.f / 4.f },   // 4
+        { 1.f / 3.f, 0.f / 4.f },   // 5
+        { 1.f / 3.f, 3.f / 4.f },   // 6
+        { 1.f / 3.f, 2.f / 4.f },   // 7
+
+        { 0.f / 3.f, 1.f / 4.f },   // 8 (5")
+        { 0.f / 3.f, 2.f / 4.f },   // 9 (6')
+
+        { 1.f / 3.f, 4.f / 4.f },   // 10 (5')
+        { 2.f / 3.f, 4.f / 4.f },   // 11 (0')
+
+        { 3.f / 3.f, 1.f / 4.f },   // 12 (0")
+        { 3.f / 3.f, 2.f / 4.f }    // 13 (1')
+    };
+
+    // NOTE(achal): Freeing texture memory is not necessary for now.
+    texture.texels = (u8*)stbi_load("../dice_skin.png", &texture.width, &texture.height, &texture.channel_count, 0);
+#endif
+
+    cube.vertices.resize(14);
     for (int i = 0; i < cube.vertices.size(); ++i)
     {
         cube.vertices[i].position = vertex_positions[i];
         cube.vertices[i].texture_coordinates = texture_coordinates[i];
     }
-
-    // NOTE(achal): Freeing texture memory is not necessary for now.
-    texture.texels = (u8*)stbi_load("../sauron-bhole-100x100.png", &texture.width, &texture.height, &texture.channel_count, 0);
 
 #if WIREFRAME
     cube.indices = 
@@ -409,23 +437,23 @@ void Engine::Initialize()
     // gives you the winding of the triangles.
     cube.indices = 
     {
-        4, 3, 2,
-        4, 2, 7,
+        3, 5, 0,
+        3, 4, 5,
 
-        4, 7, 5,
-        5, 7, 6,
+        2, 4, 3,
+        2, 7, 4,
 
-        6, 1, 5,
-        1, 0, 5,
-
-        0, 3, 4,
-        0, 4, 5,
-
-        1, 6, 7,
         1, 7, 2,
+        1, 6, 7,
 
-        1, 2, 3,
-        0, 1, 3
+        1, 10, 6,
+        1, 11, 10,
+
+        7, 8, 4,
+        7, 9, 8,
+
+        3, 12, 2,
+        12, 13, 2
     };
 #endif
 }
@@ -545,7 +573,7 @@ void Engine::UpdateAndRender()
             v2.position.x = ((v2.position.x / -v2.position.z) + 1.f) * half_width;
             v2.position.y = ((-v2.position.y / -v2.position.z) + 1.f) * half_height;
 
-            // DrawTriangle(v0.position, v1.position, v2.position, framebuffer, colors[i % 4]);
+            // DrawTriangle(v0, v1, v2, framebuffer, colors[i % 4]);
             DrawTriangleTex(v0, v1, v2, framebuffer, texture);
         }
     }
