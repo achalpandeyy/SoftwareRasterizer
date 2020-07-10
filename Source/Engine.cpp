@@ -2,8 +2,8 @@
 
 #define TEXTURE_WRAP 1
 
-#include "glm/glm/gtc/matrix_transform.hpp"
-#include "stb_image/stb_image.h"
+#include <glm/gtc/matrix_transform.hpp>
+#include <stb_image/stb_image.h>
 
 // TODO(achal): Swap macro and ceil function.
 #include <cmath>
@@ -16,9 +16,7 @@
     3D position because they have texture coordinates associated with them in the struct "Vertex". So essentially,
     the z-component is wasted space.
     Workaround for this?
-*/
 
-/*
     NOTE(achal): I'm using Direct3D's Coordinate System and Rasterization Rules.
     The pixel (0, 0) includes the _area_ [0, 1) x [0, 1). (0, 0)th pixel is the one
     at the top-left corner.
@@ -74,10 +72,6 @@ void DrawLine(glm::vec2& v0, glm::vec2& v1, Framebuffer& framebuffer, u32 color)
     }
 }
 
-// TODO(achal): Maybe remove the following solid color triangle drawing routines in favour of a single
-// triangle routine which is smart enough to know that when to use a (supplied) solid color and when
-// to do a texture lookup??
-#if 0
 // NOTE(achal): Vertex Order Assumption:
 //
 //        v0
@@ -85,119 +79,9 @@ void DrawLine(glm::vec2& v0, glm::vec2& v1, Framebuffer& framebuffer, u32 color)
 //       /  \
 //      /    \
 //   v1 ------ v2
-//
-void DrawFlatBottomTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, u32 color)
-{
-    f32 rcp_slope_1_0 = (f32)(v1.position.x - v0.position.x) / (f32)(v1.position.y - v0.position.y);
-    f32 rcp_slope_2_0 = (f32)(v2.position.x - v0.position.x) / (f32)(v2.position.y - v0.position.y);
 
-    int pixel_y_start = (int)std::ceilf(v0.position.y - 0.5f);
-    int pixel_y_end = (int)std::ceilf(v1.position.y - 0.5f);
-
-    for (int pixel_y = pixel_y_start; pixel_y < pixel_y_end; ++pixel_y)
-    {
-        f32 point_x1 = rcp_slope_1_0 * (f32(pixel_y) + 0.5f - v1.position.y) + v1.position.x;
-        f32 point_x2 = rcp_slope_2_0 * (f32(pixel_y) + 0.5f - v2.position.y) + v2.position.x;
-
-        int pixel_x_start = (int)std::ceilf(point_x1 - 0.5f);
-        int pixel_x_end = (int)std::ceilf(point_x2 - 0.5f);
-
-        for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x)
-        {
-            u32* pixel = framebuffer.GetPixelPointer(pixel_x, pixel_y);
-            *pixel = color;
-        }
-    }
-}
-
-// NOTE(achal): Vertex Order Assumption:
-//
-//   v0 ------ v1
-//      \    /
-//       \  /
-//        \/
-//        v2
-//
-void DrawFlatTopTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, u32 color)
-{
-    // NOTE(achal): Here we calculate the reciprocal of the slope of the lines because, we _could_ have a 
-    // line with infinte slope which would throw a divison by zero error.
-
-    f32 rcp_slope_2_0 = (f32)(v2.position.x - v0.position.x) / (f32)(v2.position.y - v0.position.y);
-    f32 rcp_slope_2_1 = (f32)(v2.position.x - v1.position.x) / (f32)(v2.position.y - v1.position.y);
-
-    int pixel_y_start = (int)std::ceilf(v0.position.y - 0.5f);
-    int pixel_y_end = (int)std::ceilf(v2.position.y - 0.5f);
-
-    for (int pixel_y = pixel_y_start; pixel_y < pixel_y_end; ++pixel_y)
-    {
-        f32 point_x0 = rcp_slope_2_0 * (f32(pixel_y) + 0.5f - v0.position.y) + v0.position.x;
-        f32 point_x1 = rcp_slope_2_1 * (f32(pixel_y) + 0.5f - v1.position.y) + v1.position.x;
-
-        int pixel_x_start = (int)std::ceilf(point_x0 - 0.5f);
-        int pixel_x_end = (int)std::ceilf(point_x1 - 0.5f);
-
-        for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x)
-        {
-            u32* pixel = framebuffer.GetPixelPointer(pixel_x, pixel_y);
-            *pixel = color;
-        }
-    }
-}
-
-// NOTE(achal): This takes shit is raster space.
-void DrawTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, u32 color)
-{
-    const Vertex* vertex_0 = &v0;
-    const Vertex* vertex_1 = &v1;
-    const Vertex* vertex_2 = &v2;
-
-    // NOTE(achal): Sort the vertices so that v0 will be at the top (lowest y) and v2 will be at the bottom (highest y).
-
-    if (vertex_0->position.y > vertex_1->position.y) std::swap(vertex_0, vertex_1);
-    if (vertex_1->position.y > vertex_2->position.y) std::swap(vertex_1, vertex_2);
-    if (vertex_0->position.y > vertex_1->position.y) std::swap(vertex_0, vertex_1);
-
-    if (vertex_0->position.y == vertex_1->position.y)
-    {
-        // NOTE(achal): Sort the vertices so that v0 is left of v1
-        if (vertex_0->position.x > vertex_1->position.x)
-            std::swap(vertex_0, vertex_1);
-
-        DrawFlatTopTriangle(*vertex_0, *vertex_1, *vertex_2, framebuffer, color);
-    }
-    else if (vertex_1->position.y == vertex_2->position.y)
-    {
-        // NOTE(achal): Sort the vertices so that v1 is left of v2
-        if (vertex_1->position.x > vertex_2->position.x)
-            std::swap(vertex_1, vertex_2);
-
-        DrawFlatBottomTriangle(*vertex_0, *vertex_1, *vertex_2, framebuffer, color);
-    }
-    else
-    {
-        f32 alpha = (f32)(vertex_1->position.y - vertex_0->position.y) / (f32)(vertex_2->position.y - vertex_0->position.y);
-        Vertex split_vertex = {};
-        split_vertex.position = vertex_0->position + (vertex_2->position - vertex_0->position) * alpha;
-
-        if (split_vertex.position.x > vertex_1->position.x)
-        {
-            // Major Right
-            DrawFlatBottomTriangle(*vertex_0, *vertex_1, split_vertex, framebuffer, color);
-            DrawFlatTopTriangle(*vertex_1, split_vertex, *vertex_2, framebuffer, color);
-        }
-        else
-        {
-            // Major Left
-            DrawFlatBottomTriangle(*vertex_0, split_vertex, *vertex_1, framebuffer, color);
-            DrawFlatTopTriangle(split_vertex, *vertex_1, *vertex_2, framebuffer, color);
-        }
-    }
-}
-#endif
-
-// TODO(achal): DrawFlatTopTriangleTex & DrawFlatBottomTriangleTex seems suspiciously similar, collapse 'em into one??
-void DrawFlatBottomTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, const Texture& texture)
+// TODO(achal): DrawFlatTopTriangle & DrawFlatBottomTriangle seems suspiciously similar, collapse 'em into one??
+void DrawFlatBottomTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, Texture* texture, u32 color)
 {
     f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
 
@@ -226,13 +110,28 @@ void DrawFlatBottomTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex&
         for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x, scan_tex_interpolant += dtexdx)
         {
             u32* pixel = framebuffer.GetPixelPointer(pixel_x, pixel_y);
-            u32 texel = texture.GetTexel(scan_tex_interpolant.x, scan_tex_interpolant.y, TEXTURE_WRAP);
-            *pixel = texel;
+            if (texture)
+            {
+                *pixel = texture->GetTexel(scan_tex_interpolant.x, scan_tex_interpolant.y, TEXTURE_WRAP);
+            }
+            else
+            {
+                *pixel = color;
+            }
         }
     }
 }
 
-void DrawFlatTopTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, const Texture& texture)
+// NOTE(achal): Vertex Order Assumption:
+//
+//   v0 ------ v1
+//      \    /
+//       \  /
+//        \/
+//        v2
+//
+
+void DrawFlatTopTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, Texture* texture, u32 color)
 {
     f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
 
@@ -261,13 +160,19 @@ void DrawFlatTopTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2
         for (int pixel_x = pixel_x_start; pixel_x < pixel_x_end; ++pixel_x, scan_tex_interpolant += dtexdx)
         {
             u32* pixel = framebuffer.GetPixelPointer(pixel_x, pixel_y);
-            u32 texel = texture.GetTexel(scan_tex_interpolant.x, scan_tex_interpolant.y, TEXTURE_WRAP);
-            *pixel = texel;
+            if (texture)
+            {
+                *pixel = texture->GetTexel(scan_tex_interpolant.x, scan_tex_interpolant.y, TEXTURE_WRAP);
+            }
+            else
+            {
+                *pixel = color;
+            }
         }
     }
 }
 
-void DrawTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, const Texture& texture)
+void DrawTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, Framebuffer& framebuffer, Texture* texture, u32 color)
 {
     const Vertex* vertex0 = &v0;
     const Vertex* vertex1 = &v1;
@@ -284,7 +189,8 @@ void DrawTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Frame
         if (vertex0->position.x > vertex1->position.x)
             std::swap(vertex0, vertex1);
 
-        DrawFlatTopTriangleTex(*vertex0, *vertex1, *vertex2, framebuffer, texture);
+        DrawFlatTopTriangle(*vertex0, *vertex1, *vertex2, framebuffer, texture, color);
+        // DrawFlatBottomTriangle(*vertex2, *vertex1, *vertex0, framebuffer, texture, color);
     }
     else if (vertex1->position.y == vertex2->position.y)
     {
@@ -292,7 +198,7 @@ void DrawTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Frame
         if (vertex1->position.x > vertex2->position.x)
             std::swap(vertex1, vertex2);
 
-        DrawFlatBottomTriangleTex(*vertex0, *vertex1, *vertex2, framebuffer, texture);
+        DrawFlatBottomTriangle(*vertex0, *vertex1, *vertex2, framebuffer, texture, color);
     }
     else
     {
@@ -305,14 +211,16 @@ void DrawTriangleTex(const Vertex& v0, const Vertex& v1, const Vertex& v2, Frame
         if (split_vertex.position.x > vertex1->position.x)
         {
             // Major Right
-            DrawFlatBottomTriangleTex(*vertex0, *vertex1, split_vertex, framebuffer, texture);
-            DrawFlatTopTriangleTex(*vertex1, split_vertex, *vertex2, framebuffer, texture);    
+            DrawFlatBottomTriangle(*vertex0, *vertex1, split_vertex, framebuffer, texture, color);
+            DrawFlatTopTriangle(*vertex1, split_vertex, *vertex2, framebuffer, texture, color);
+            // DrawFlatBottomTriangle(*vertex2, split_vertex, *vertex1, framebuffer, texture, color);    
         }
         else
         {
             // Major Left
-            DrawFlatBottomTriangleTex(*vertex0, split_vertex, *vertex1, framebuffer, texture);
-            DrawFlatTopTriangleTex(split_vertex, *vertex1, *vertex2, framebuffer, texture);
+            DrawFlatBottomTriangle(*vertex0, split_vertex, *vertex1, framebuffer, texture, color);
+            DrawFlatTopTriangle(split_vertex, *vertex1, *vertex2, framebuffer, texture, color);
+            // DrawFlatBottomTriangle(*vertex2, *vertex1, split_vertex, framebuffer, texture, color);
         }
     }
 }
@@ -457,6 +365,12 @@ inline f32 WrapAngle(f32 angle)
     return modded_angle > PI32 ? modded_angle - 2.f * PI32 : modded_angle;
 }
 
+inline void ToScreenSpace(Vertex* v, f32 half_width, f32 half_height)
+{
+    v->position.x = ((v->position.x / -v->position.z) + 1.f) * half_width;
+    v->position.y = ((-v->position.y / -v->position.z) + 1.f) * half_height;
+}
+
 void Engine::Render()
 {
     // TODO(achal): Is my rotation speed too high or maybe I was just cycling through a lot frames earlier?
@@ -512,18 +426,13 @@ void Engine::Render()
         if (!should_cull)
         {
             // World (View) Space to Screen Space
+            ToScreenSpace(&v0, half_width, half_height);
+            ToScreenSpace(&v1, half_width, half_height);
+            ToScreenSpace(&v2, half_width, half_height);
 
-            // TODO(achal): Pull this repeated projection code out!
-            v0.position.x = ((v0.position.x / -v0.position.z) + 1.f) * half_width;
-            v0.position.y = ((-v0.position.y / -v0.position.z) + 1.f) * half_height;
-
-            v1.position.x = ((v1.position.x / -v1.position.z) + 1.f) * half_width;
-            v1.position.y = ((-v1.position.y / -v1.position.z) + 1.f) * half_height;
-
-            v2.position.x = ((v2.position.x / -v2.position.z) + 1.f) * half_width;
-            v2.position.y = ((-v2.position.y / -v2.position.z) + 1.f) * half_height;
-
-            DrawTriangleTex(v0, v1, v2, framebuffer, texture);
+            // TODO(achal): If we have a solid color to set, it doesn't make sense to go through all that
+            // texutre interpolation bullshit. So maybe have different DrawTriangle functions like before??
+            DrawTriangle(v0, v1, v2, framebuffer, &texture, 0);
         }
     }
 }

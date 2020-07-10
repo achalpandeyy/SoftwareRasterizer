@@ -46,17 +46,17 @@ LRESULT CALLBACK Win32WindowCallback(HWND window, UINT message, WPARAM w_param, 
     {
         case WM_SIZE:
         {
-            OutputDebugString("WM_SIZE\n");
+            OutputDebugString(L"WM_SIZE\n");
         } break;
 
         case WM_DESTROY:
         {
-            OutputDebugString("WM_DESTROY\n");
+            OutputDebugString(L"WM_DESTROY\n");
         } break;
 
         case WM_CLOSE:
         {
-            OutputDebugString("WM_CLOSE\n");
+            OutputDebugString(L"WM_CLOSE\n");
             PostQuitMessage(0);
         } break;
 
@@ -72,7 +72,7 @@ LRESULT CALLBACK Win32WindowCallback(HWND window, UINT message, WPARAM w_param, 
 
         case WM_ACTIVATEAPP:
         {
-            OutputDebugString("WM_ACTIVATEAPP\n");
+            OutputDebugString(L"WM_ACTIVATEAPP\n");
         } break;
 
         default:
@@ -84,18 +84,18 @@ LRESULT CALLBACK Win32WindowCallback(HWND window, UINT message, WPARAM w_param, 
     return result;
 }
 
-HWND Win32CreateWindow(int width, int height, LPCSTR name, HINSTANCE instance)
+HWND Win32CreateWindow(int width, int height, LPCWSTR name, HINSTANCE instance)
 {
     WNDCLASS WindowClass = {};
     WindowClass.style = CS_CLASSDC;
     WindowClass.lpfnWndProc = Win32WindowCallback;
     WindowClass.hInstance = instance;
-    WindowClass.lpszClassName = "SoftwareRendererWindowClass";
+    WindowClass.lpszClassName = L"SoftwareRenderingEngineWindowClass";
 
     if (!RegisterClass(&WindowClass))
     {
         // TODO(achal): Logging.
-        OutputDebugString("Failed to register window class!\n");
+        OutputDebugString(L"Failed to register window class!\n");
     }
 
     return CreateWindowEx(0, WindowClass.lpszClassName, name, WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VISIBLE,
@@ -121,11 +121,11 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, PSTR command_l
     int width = 768;
     int height = 768;
 
-    HWND window = Win32CreateWindow(width, height, "Software Rendering Engine", instance);
+    HWND window = Win32CreateWindow(width, height, L"Software Rendering Engine", instance);
     if (!window)
     {
         // TODO(achal): Logging.
-        OutputDebugString("Unable to create window!\n");
+        OutputDebugString(L"Unable to create window!\n");
         exit(1);
     }
 
@@ -153,7 +153,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, PSTR command_l
     if (!win32_framebuffer.pixels)
     {
         // TODO(achal): Logging.
-        OutputDebugString("Unable to allocate memory for image buffer\n");
+        OutputDebugString(L"Unable to allocate memory for image buffer\n");
         exit(1);
     }
 

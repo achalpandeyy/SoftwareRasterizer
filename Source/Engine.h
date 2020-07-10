@@ -1,11 +1,11 @@
 #ifndef ENGINE_H
 
-#include "glm/glm/glm.hpp"
+#include <glm/glm.hpp>
 
 #include <cmath>
 #include <vector>
 
-#include <stdint.h>
+#include <cstdint>
 typedef uint32_t b32;
 
 typedef uint8_t u8;
