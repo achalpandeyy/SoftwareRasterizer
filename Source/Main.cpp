@@ -7,8 +7,7 @@ struct Win32Framebuffer
 {
     int width;
     int height;
-    int bytes_per_pixel;
-    int pitch;
+    int channel_count;
     void* pixels;
     BITMAPINFO info;
 };
@@ -132,8 +131,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, PSTR command_l
     Win32Framebuffer win32_framebuffer = {};
     win32_framebuffer.width = width;
     win32_framebuffer.height = height;
-    win32_framebuffer.bytes_per_pixel = 4;
-    win32_framebuffer.pitch = win32_framebuffer.width * win32_framebuffer.bytes_per_pixel;;
+    win32_framebuffer.channel_count = 4;
 
     // NOTE(achal): Top-down Bitmap! (0, 0) at top-left.
     win32_framebuffer.info = {};
@@ -141,26 +139,23 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, PSTR command_l
     win32_framebuffer.info.bmiHeader.biWidth = win32_framebuffer.width;
     win32_framebuffer.info.bmiHeader.biHeight = -win32_framebuffer.height;
     win32_framebuffer.info.bmiHeader.biPlanes = 1;
-    win32_framebuffer.info.bmiHeader.biBitCount = (WORD)(win32_framebuffer.bytes_per_pixel * 8);
+    win32_framebuffer.info.bmiHeader.biBitCount = (WORD)(win32_framebuffer.channel_count * 8);
     win32_framebuffer.info.bmiHeader.biCompression = BI_RGB;
 
     // NOTE(achal): This allocated memory is not explicitly freed anywhere in the program because
     // it'll get freed automatically when the program exits. This could, however, become a problem
     // of memory leak, when we allocate this repeatedly, for example, in a loop.
-    win32_framebuffer.pixels = VirtualAlloc(0, win32_framebuffer.width * win32_framebuffer.height * win32_framebuffer.bytes_per_pixel,
-        MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    win32_framebuffer.pixels = VirtualAlloc(0, (size_t)win32_framebuffer.width * (size_t)win32_framebuffer.height
+        * (size_t)win32_framebuffer.channel_count, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
     if (!win32_framebuffer.pixels)
     {
-        // TODO(achal): Logging.
         OutputDebugString(L"Unable to allocate memory for image buffer\n");
         exit(1);
     }
 
     Engine engine;
-    engine.Initialize();
-    engine.SetupFramebuffer(win32_framebuffer.width, win32_framebuffer.height, win32_framebuffer.bytes_per_pixel,
-        win32_framebuffer.pitch, win32_framebuffer.pixels);
+    engine.Initialize(win32_framebuffer.width, win32_framebuffer.height, win32_framebuffer.channel_count, win32_framebuffer.pixels);
 
     while (true)
     {
@@ -175,10 +170,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, PSTR command_l
         engine.Render();
 
         Win32DisplayImage(win32_framebuffer, GetDC(window));
-
-        // Clear the buffer to black.
-        // TODO(achal): In the near future I'd like to have some sort of a swapping of buffer mechanism.
-        memset(win32_framebuffer.pixels, 0, win32_framebuffer.width * win32_framebuffer.height * win32_framebuffer.bytes_per_pixel);
     }
 
     return 0;

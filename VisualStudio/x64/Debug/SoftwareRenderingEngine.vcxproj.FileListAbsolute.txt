@@ -1,0 +1,2 @@
+C:\Projects\SoftwareRenderer\VisualStudio\x64\Debug\SoftwareRenderingEngine.exe
+C:\Projects\SoftwareRenderer\VisualStudio\x64\Debug\SoftwareRenderingEngine.pdb
