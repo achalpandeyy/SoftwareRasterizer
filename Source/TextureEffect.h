@@ -15,6 +15,11 @@ struct TextureEffect
     {
         glm::vec3 position;
         glm::vec2 texture_coordinates;
+
+        inline void CopyAttributesFrom(const Vertex& src)
+        {
+            texture_coordinates = src.texture_coordinates;
+        }
     };
 
     struct PixelShader
@@ -23,7 +28,7 @@ struct TextureEffect
         u32 operator () (const Input& in) const
         {
             assert(texture);
-            return texture->GetTexel(in.x, in.y, TEXTURE_WRAP);
+            return texture->GetTexel(in.texture_coordinates.x, in.texture_coordinates.y, TEXTURE_WRAP);
         }
 
         void BindTexture(const char* path)

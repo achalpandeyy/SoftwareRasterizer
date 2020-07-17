@@ -1,29 +1,15 @@
-#ifndef CUBE_SKIN_SCENE_H
+#ifndef CUBE_SCENE_H
 
-#include "Core/Types.h"
 #include "IndexedTriangleList.h"
 #include "Pipeline.h"
 #include "TextureEffect.h"
 
-#include <glm/glm.hpp>
-
-// NOTE(achal): Triangle Winding Assumption: Anticlock-wise
-//
-//        v0
-//        /\
-//       /  \
-//      /    \
-//   v1 ------ v2
-//
-// Normal of the triangle is given by: (v1 - v0) x (v2 - v0)
-// Cull the triangle when face normal points in the same direction as view vector (any_point_on_the_triangle - focal_point).
-
-struct CubeSkinScene
+struct CubeScene
 {
     typedef Pipeline<TextureEffect> Pipeline;
     typedef Pipeline::Vertex Vertex;
 
-    CubeSkinScene()
+    CubeScene()
     {
         // Vertex Positions.
         it_list.vertices.resize(14);
@@ -48,22 +34,22 @@ struct CubeSkinScene
         it_list.vertices[13].position = { half_side_length, -half_side_length, -half_side_length };  // 1'
 
         // Texture Coordinates (for dice_skin.png)
-        it_list.vertices[0].texture_coordinates = { 2.f / 3.f, 0.f / 4.f };
-        it_list.vertices[1].texture_coordinates = { 2.f / 3.f, 3.f / 4.f };
-        it_list.vertices[2].texture_coordinates = { 2.f / 3.f, 2.f / 4.f };
-        it_list.vertices[3].texture_coordinates = { 2.f / 3.f, 1.f / 4.f };
+        it_list.vertices[0].texture_coordinates = { 2.f, 0.f };
+        it_list.vertices[1].texture_coordinates = { 2.f, 3.f };
+        it_list.vertices[2].texture_coordinates = { 2.f, 2.f };
+        it_list.vertices[3].texture_coordinates = { 2.f, 1.f };
 
-        it_list.vertices[4].texture_coordinates = { 1.f / 3.f, 1.f / 4.f };
-        it_list.vertices[5].texture_coordinates = { 1.f / 3.f, 0.f / 4.f };
-        it_list.vertices[6].texture_coordinates = { 1.f / 3.f, 3.f / 4.f };
-        it_list.vertices[7].texture_coordinates = { 1.f / 3.f, 2.f / 4.f };
+        it_list.vertices[4].texture_coordinates = { 1.f, 1.f };
+        it_list.vertices[5].texture_coordinates = { 1.f, 0.f };
+        it_list.vertices[6].texture_coordinates = { 1.f, 3.f };
+        it_list.vertices[7].texture_coordinates = { 1.f, 2.f };
 
-        it_list.vertices[8].texture_coordinates = { 0.f / 3.f, 1.f / 4.f };  // 5"
-        it_list.vertices[9].texture_coordinates = { 0.f / 3.f, 2.f / 4.f };  // 6'
-        it_list.vertices[10].texture_coordinates = { 1.f / 3.f, 4.f / 4.f }; // 5'
-        it_list.vertices[11].texture_coordinates = { 2.f / 3.f, 4.f / 4.f }; // 0'
-        it_list.vertices[12].texture_coordinates = { 3.f / 3.f, 1.f / 4.f }; // 0"
-        it_list.vertices[13].texture_coordinates = { 3.f / 3.f, 2.f / 4.f }; // 1'
+        it_list.vertices[8].texture_coordinates = { 0.f, 1.f };  // 5"
+        it_list.vertices[9].texture_coordinates = { 0.f, 2.f };  // 6'
+        it_list.vertices[10].texture_coordinates = { 1.f, 4.f }; // 5'
+        it_list.vertices[11].texture_coordinates = { 2.f, 4.f }; // 0'
+        it_list.vertices[12].texture_coordinates = { 3.f, 1.f }; // 0"
+        it_list.vertices[13].texture_coordinates = { 3.f, 2.f }; // 1'
 
         // Indices.
         // Assemble your cube in such a way that all the face normals face outside -- this constraint 
@@ -88,15 +74,16 @@ struct CubeSkinScene
         it_list.indices[30] = 3; it_list.indices[31] = 12; it_list.indices[32] = 2;
         it_list.indices[33] = 12; it_list.indices[34] = 13; it_list.indices[35] = 2;
 
-        pipeline.effect.pixel_shader.BindTexture("../Resources/dice_skin.png");
+        pipeline.effect.pixel_shader.BindTexture("../Resources/sauron.png");
     }
 
     IndexedTriangleList<Vertex> it_list;
     Pipeline pipeline;
+
     f32 theta_x = 0.f;
     f32 theta_y = 0.f;
     f32 theta_z = 0.f;
 };
 
-#define CUBE_SKIN_SCENE_H
+#define CUBE_SCENE_H
 #endif

@@ -28,7 +28,7 @@ struct Pipeline
         for (int i = 0; i < it_list.vertices.size(); ++i)
         {
             transformed_vertices[i].position = glm::vec3(model * glm::vec4(it_list.vertices[i].position, 1.f));
-            transformed_vertices[i].texture_coordinates = it_list.vertices[i].texture_coordinates;
+            transformed_vertices[i].CopyAttributesFrom(it_list.vertices[i]);
         }
 
         // Assemble Triangles
@@ -82,10 +82,7 @@ struct Pipeline
         else
         {
             f32 alpha = (f32)(v1->position.y - v0->position.y) / (f32)(v2->position.y - v0->position.y);
-            Vertex split_vertex = {};
-            split_vertex.position = v0->position + (v2->position - v0->position) * alpha;
-            split_vertex.texture_coordinates = v0->texture_coordinates
-                + (v2->texture_coordinates - v0->texture_coordinates) * alpha;
+            Vertex split_vertex = *v0 + (*v2 - *v0) * alpha;
 
             if (split_vertex.position.x > v1->position.x)
             {
@@ -180,7 +177,13 @@ struct Pipeline
         Vertex interp = interp_left + d_interp * ((f32)start + 0.5f - interp_left.position.x);
 
         for (int x = start; x < end; ++x, interp += d_interp)
-            framebuffer->PutPixel(x, y, effect.pixel_shader(interp.texture_coordinates));
+            framebuffer->PutPixel(x, y, effect.pixel_shader(interp));
+    }
+
+    inline static void ToScreenSpace(Vertex* v, f32 half_width, f32 half_height)
+    {
+        v->position.x = ((v->position.x / -v->position.z) + 1.f) * half_width;
+        v->position.y = ((-v->position.y / -v->position.z) + 1.f) * half_height;
     }
 
 #if 0
