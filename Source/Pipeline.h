@@ -177,13 +177,29 @@ struct Pipeline
         Vertex interp = interp_left + d_interp * ((f32)start + 0.5f - interp_left.position.x);
 
         for (int x = start; x < end; ++x, interp += d_interp)
-            framebuffer->PutPixel(x, y, effect.pixel_shader(interp));
+        {
+            // NOTE(achal): We're doing some unnecessary computations here by multiplying the z value to
+            // every vertex attribute of interp.
+            f32 z = 1.f / interp.position.z;
+            framebuffer->PutPixel(x, y, effect.pixel_shader(interp * z));
+        }
     }
 
     inline static void ToScreenSpace(Vertex* v, f32 half_width, f32 half_height)
     {
-        v->position.x = ((v->position.x / -v->position.z) + 1.f) * half_width;
-        v->position.y = ((-v->position.y / -v->position.z) + 1.f) * half_height;
+        // NOTE(achal): Since I'm looking down the negative z axis, all the z-coordinates would be negative.
+        // We do not want to mirror the x and y coordinates about the y = x line when we do perspective divide
+        // by z, so we take the absolute value of it.
+        f32 rcp_abs_z = 1.f / glm::abs(v->position.z);
+
+        // NOTE(achal): This will bring all the attributes in screen-space, even the texture coordinates.
+        // Bringing texture coordinates in screen-space is required so that texture maps
+        // correctly to the object in perspective space (basically, avoid texture warping).
+        *v *= rcp_abs_z;
+
+        v->position.x = (v->position.x + 1.f) * half_width;
+        v->position.y = (-v->position.y + 1.f) * half_height;
+        v->position.z = rcp_abs_z;
     }
 
 #if 0

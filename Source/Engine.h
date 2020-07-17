@@ -3,10 +3,10 @@
 #include "Core/Types.h"
 
 // TODO(achal): Can't include all them together for some reason!!
-// #include "CubeSkinScene.h"
+#include "CubeSkinScene.h"
 // #include "CubeScene.h"
 // #include "ColorCubeScene.h"
-#include "FaceColorCubeScene.h"
+// #include "FaceColorCubeScene.h"
 
 #include <cmath>
 #include <vector>
@@ -28,9 +28,9 @@ struct Engine
     Button buttons[3];
     
     Framebuffer framebuffer;
-    // CubeSkinScene scene;
+    CubeSkinScene scene;
     // CubeScene scene;
-    FaceColorCubeScene scene;
+    // FaceColorCubeScene scene;
 };
 
 #define ENGINE_H

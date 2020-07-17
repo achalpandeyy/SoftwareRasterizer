@@ -68,5 +68,12 @@ inline Vertex& operator += (Vertex& v0, const Vertex& v1)
     return v0;
 }
 
+inline Vertex& operator *= (Vertex& v, f32 s)
+{
+    v.position *= s;
+    v.color *= s;
+    return v;
+}
+
 #define VERTEX_COLOR_EFFECT_H
 #endif
