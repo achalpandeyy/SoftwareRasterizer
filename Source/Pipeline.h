@@ -1,6 +1,7 @@
 #include "Core/Types.h"
 #include "IndexedTriangleList.h"
 #include "Framebuffer.h"
+#include "ZBuffer.h"
 #include "Texture.h"
 
 #include <glm/glm.hpp>
@@ -42,9 +43,9 @@ struct Pipeline
             Vertex v1 = transformed_vertices[idx1];
             Vertex v2 = transformed_vertices[idx2];
 
-            b32 should_cull = glm::dot(v0.position, glm::cross(v1.position - v0.position, v2.position - v0.position)) >= 0.f;
+            // b32 should_cull = glm::dot(v0.position, glm::cross(v1.position - v0.position, v2.position - v0.position)) >= 0.f;
 
-            if (!should_cull)
+            // if (!should_cull)
             {
                 // World (View) Space to Screen Space
                 ToScreenSpace(&v0, half_width, half_height);
@@ -181,7 +182,10 @@ struct Pipeline
             // NOTE(achal): We're doing some unnecessary computations here by multiplying the z value to
             // every vertex attribute of interp.
             f32 z = 1.f / interp.position.z;
-            framebuffer->PutPixel(x, y, effect.pixel_shader(interp * z));
+            if (z_buffer->TestAndSet(x, y, z))
+            {
+                framebuffer->PutPixel(x, y, effect.pixel_shader(interp * z));
+            }
         }
     }
 
@@ -249,4 +253,5 @@ struct Pipeline
     Effect effect;
     glm::mat4 model;
     Framebuffer* framebuffer;
+    ZBuffer* z_buffer;
 };

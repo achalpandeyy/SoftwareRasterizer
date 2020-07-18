@@ -18,8 +18,12 @@ void Engine::Initialize(int width, int height, int channel_count, void* pixels)
     framebuffer.height = height;
     framebuffer.channel_count = channel_count;
     framebuffer.pixels = pixels;
-
     scene.pipeline.framebuffer = &framebuffer;
+
+    z_buffer.width = width;
+    z_buffer.height = height;
+    z_buffer.z_values = (f32*)malloc((size_t)width * (size_t)height * sizeof(f32));
+    scene.pipeline.z_buffer = &z_buffer;
 }
 
 // Wraps the given angle in the range -PI to PI
@@ -31,7 +35,7 @@ inline f32 WrapAngle(f32 angle)
 
 void Engine::UpdateModel()
 {
-    f32 angular_speed = PI32 / 10.f;
+    f32 angular_speed = PI32 / 2.f;
     f32 dt = 1.f / 60.f;
     f32 dtheta = angular_speed * dt;
 
@@ -59,6 +63,7 @@ void Engine::UpdateModel()
 void Engine::Render()
 {
     framebuffer.Clear();
+    z_buffer.Clear();
     UpdateModel();
     scene.pipeline.Draw(scene.it_list);
 }

@@ -3,8 +3,8 @@
 #include "Core/Types.h"
 
 // TODO(achal): Can't include all them together for some reason!!
-#include "CubeSkinScene.h"
-// #include "CubeScene.h"
+// #include "CubeSkinScene.h"
+#include "CubeScene.h"
 // #include "ColorCubeScene.h"
 // #include "FaceColorCubeScene.h"
 
@@ -28,8 +28,9 @@ struct Engine
     Button buttons[3];
     
     Framebuffer framebuffer;
-    CubeSkinScene scene;
-    // CubeScene scene;
+    ZBuffer z_buffer;
+    // CubeSkinScene scene;
+    CubeScene scene;
     // FaceColorCubeScene scene;
 };
 
