@@ -33,6 +33,5 @@ struct ZBuffer
     }
 };
 
-
 #define Z_BUFFER_H
 #endif

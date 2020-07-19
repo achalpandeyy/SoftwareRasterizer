@@ -1,6 +1,7 @@
 #ifndef VERTEX_COLOR_EFFECT_H
 
 #include "Core/Types.h"
+#include "DefaultVertexShader.h"
 
 #include <glm/glm.hpp>
 
@@ -18,6 +19,8 @@ struct VertexColorEffect
         }
     };
 
+    typedef DefaultVertexShader<Vertex> VertexShader;
+
     struct PixelShader
     {
         template <typename Input>
@@ -32,43 +35,42 @@ struct VertexColorEffect
         }
     };
 
+    VertexShader vertex_shader;
     PixelShader pixel_shader;
 };
 
-typedef VertexColorEffect::Vertex Vertex;
-
-inline Vertex operator + (const Vertex& v0, const Vertex& v1)
+inline VertexColorEffect::Vertex operator + (const VertexColorEffect::Vertex& v0, const VertexColorEffect::Vertex& v1)
 {
-    Vertex result = { v0.position + v1.position, v0.color + v1.color };
+    VertexColorEffect::Vertex result = { v0.position + v1.position, v0.color + v1.color };
     return result;
 }
 
-inline Vertex operator - (const Vertex& v0, const Vertex& v1)
+inline VertexColorEffect::Vertex operator - (const VertexColorEffect::Vertex& v0, const VertexColorEffect::Vertex& v1)
 {
-    Vertex result = { v0.position - v1.position, v0.color - v1.color };
+    VertexColorEffect::Vertex result = { v0.position - v1.position, v0.color - v1.color };
     return result;
 }
 
-inline Vertex operator * (const Vertex& v, f32 s)
+inline VertexColorEffect::Vertex operator * (const VertexColorEffect::Vertex& v, f32 s)
 {
-    Vertex result = { v.position * s, v.color * s };
+    VertexColorEffect::Vertex result = { v.position * s, v.color * s };
     return result;
 }
 
-inline Vertex operator / (const Vertex& v, f32 s)
+inline VertexColorEffect::Vertex operator / (const VertexColorEffect::Vertex& v, f32 s)
 {
-    Vertex result = { v.position / s, v.color / s };
+    VertexColorEffect::Vertex result = { v.position / s, v.color / s };
     return result;
 }
 
-inline Vertex& operator += (Vertex& v0, const Vertex& v1)
+inline VertexColorEffect::Vertex& operator += (VertexColorEffect::Vertex& v0, const VertexColorEffect::Vertex& v1)
 {
     v0.position += v1.position;
     v0.color += v1.color;
     return v0;
 }
 
-inline Vertex& operator *= (Vertex& v, f32 s)
+inline VertexColorEffect::Vertex& operator *= (VertexColorEffect::Vertex& v, f32 s)
 {
     v.position *= s;
     v.color *= s;

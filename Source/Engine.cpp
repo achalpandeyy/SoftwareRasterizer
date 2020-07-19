@@ -57,7 +57,7 @@ void Engine::UpdateModel()
     model = glm::rotate(model, scene.theta_z, glm::vec3(0.f, 0.f, 1.f));
     model = glm::rotate(model, scene.theta_y, glm::vec3(0.f, 1.f, 0.f));
     model = glm::rotate(model, scene.theta_x, glm::vec3(1.f, 0.f, 0.f));
-    scene.pipeline.BindModelMatrix(model);
+    scene.pipeline.effect.vertex_shader.BindModelMatrix(model);
 }
 
 void Engine::Render()

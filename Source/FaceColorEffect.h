@@ -1,6 +1,7 @@
 #ifndef FACE_COLOR_EFFECT_H
 
 #include "Core/Types.h"
+#include "DefaultVertexShader.h"
 
 #include <glm/glm.hpp>
 
@@ -18,6 +19,8 @@ struct FaceColorEffect
         }
     };
 
+    typedef DefaultVertexShader<Vertex> VertexShader;
+
     struct PixelShader
     {
         template <typename Input>
@@ -27,42 +30,41 @@ struct FaceColorEffect
         }
     };
 
+    VertexShader vertex_shader;
     PixelShader pixel_shader;
 };
 
-typedef FaceColorEffect::Vertex Vertex;
-
-inline Vertex operator + (const Vertex& v0, const Vertex& v1)
+inline FaceColorEffect::Vertex operator + (const FaceColorEffect::Vertex& v0, const FaceColorEffect::Vertex& v1)
 {
-    Vertex result = { v0.position + v1.position, v0.color };
+    FaceColorEffect::Vertex result = { v0.position + v1.position, v0.color };
     return result;
 }
 
-inline Vertex operator - (const Vertex& v0, const Vertex& v1)
+inline FaceColorEffect::Vertex operator - (const FaceColorEffect::Vertex& v0, const FaceColorEffect::Vertex& v1)
 {
-    Vertex result = { v0.position - v1.position, v0.color };
+    FaceColorEffect::Vertex result = { v0.position - v1.position, v0.color };
     return result;
 }
 
-inline Vertex operator * (const Vertex& v, f32 s)
+inline FaceColorEffect::Vertex operator * (const FaceColorEffect::Vertex& v, f32 s)
 {
-    Vertex result = { v.position * s, v.color };
+    FaceColorEffect::Vertex result = { v.position * s, v.color };
     return result;
 }
 
-inline Vertex operator / (const Vertex& v, f32 s)
+inline FaceColorEffect::Vertex operator / (const FaceColorEffect::Vertex& v, f32 s)
 {
-    Vertex result = { v.position / s, v.color };
+    FaceColorEffect::Vertex result = { v.position / s, v.color };
     return result;
 }
 
-inline Vertex& operator += (Vertex& v0, const Vertex& v1)
+inline FaceColorEffect::Vertex& operator += (FaceColorEffect::Vertex& v0, const FaceColorEffect::Vertex& v1)
 {
     v0.position += v1.position;
     return v0;
 }
 
-inline Vertex& operator *= (Vertex& v, f32 s)
+inline FaceColorEffect::Vertex& operator *= (FaceColorEffect::Vertex& v, f32 s)
 {
     v.position *= s;
     return v;

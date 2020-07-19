@@ -2,11 +2,10 @@
 
 #include "Core/Types.h"
 
-// TODO(achal): Can't include all them together for some reason!!
-// #include "CubeSkinScene.h"
+#include "CubeSkinScene.h"
 #include "CubeScene.h"
-// #include "ColorCubeScene.h"
-// #include "FaceColorCubeScene.h"
+#include "ColorCubeScene.h"
+#include "FaceColorCubeScene.h"
 
 #include <cmath>
 #include <vector>
@@ -30,7 +29,9 @@ struct Engine
     Framebuffer framebuffer;
     ZBuffer z_buffer;
     // CubeSkinScene scene;
-    CubeScene scene;
+    // TODO(achal): Sauron's texture looks a bit off (just a teeny-tiny bit misplaced on faces of the cube).
+    // CubeScene scene;
+    ColorCubeScene scene;
     // FaceColorCubeScene scene;
 };
 

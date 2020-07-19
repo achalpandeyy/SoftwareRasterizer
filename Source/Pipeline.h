@@ -1,3 +1,5 @@
+#ifndef PIPELINE_H
+
 #include "Core/Types.h"
 #include "IndexedTriangleList.h"
 #include "Framebuffer.h"
@@ -5,6 +7,7 @@
 #include "Texture.h"
 
 #include <glm/glm.hpp>
+#include <algorithm>
 #include <vector>
 
 #define TEXTURE_WRAP 1
@@ -13,24 +16,15 @@ template <typename Effect>
 struct Pipeline
 {
     typedef typename Effect::Vertex Vertex;
-
-    void BindModelMatrix(const glm::mat4& m)
-    {
-        model = m;
-    }
+    typedef typename Effect::VertexShader::VertexOut VSOut;
 
     void Draw(const IndexedTriangleList<Vertex>& it_list)
     {
         f32 half_width = (f32)framebuffer->width / 2.f;
         f32 half_height = (f32)framebuffer->height / 2.f;
 
-        // Transform vertices to World Space
-        std::vector<Vertex> transformed_vertices(it_list.vertices.size());
-        for (int i = 0; i < it_list.vertices.size(); ++i)
-        {
-            transformed_vertices[i].position = glm::vec3(model * glm::vec4(it_list.vertices[i].position, 1.f));
-            transformed_vertices[i].CopyAttributesFrom(it_list.vertices[i]);
-        }
+        std::vector<VSOut> transformed_vertices(it_list.vertices.size());
+        std::transform(it_list.vertices.begin(), it_list.vertices.end(), transformed_vertices.begin(), effect.vertex_shader);
 
         // Assemble Triangles
         for (int i = 0; i < it_list.indices.size() / 3; ++i)
@@ -39,25 +33,20 @@ struct Pipeline
             size_t idx1 = it_list.indices[3 * i + 1];
             size_t idx2 = it_list.indices[3 * i + 2];
 
-            Vertex v0 = transformed_vertices[idx0];
-            Vertex v1 = transformed_vertices[idx1];
-            Vertex v2 = transformed_vertices[idx2];
+            VSOut v0 = transformed_vertices[idx0];
+            VSOut v1 = transformed_vertices[idx1];
+            VSOut v2 = transformed_vertices[idx2];
 
-            // b32 should_cull = glm::dot(v0.position, glm::cross(v1.position - v0.position, v2.position - v0.position)) >= 0.f;
+            // World (View) Space to Screen Space
+            ToScreenSpace(&v0, half_width, half_height);
+            ToScreenSpace(&v1, half_width, half_height);
+            ToScreenSpace(&v2, half_width, half_height);
 
-            // if (!should_cull)
-            {
-                // World (View) Space to Screen Space
-                ToScreenSpace(&v0, half_width, half_height);
-                ToScreenSpace(&v1, half_width, half_height);
-                ToScreenSpace(&v2, half_width, half_height);
-
-                DrawTriangle(&v0, &v1, &v2);
-            }
+            DrawTriangle(&v0, &v1, &v2);
         }
     }
 
-    void DrawTriangle(Vertex* v0, Vertex* v1, Vertex* v2)
+    void DrawTriangle(VSOut* v0, VSOut* v1, VSOut* v2)
     {
         // NOTE(achal): Sort the vertices so that v0 will be at the top (lowest y) and v2 will be at the bottom (highest y).
         if (v0->position.y > v1->position.y) std::swap(v0, v1);
@@ -83,7 +72,7 @@ struct Pipeline
         else
         {
             f32 alpha = (f32)(v1->position.y - v0->position.y) / (f32)(v2->position.y - v0->position.y);
-            Vertex split_vertex = *v0 + (*v2 - *v0) * alpha;
+            VSOut split_vertex = *v0 + (*v2 - *v0) * alpha;
 
             if (split_vertex.position.x > v1->position.x)
             {
@@ -108,15 +97,15 @@ struct Pipeline
     //      /    \
     //   v1 ------ v2
 
-    void DrawFlatBottomTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2)
+    void DrawFlatBottomTriangle(const VSOut& v0, const VSOut& v1, const VSOut& v2)
     {
         f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
 
-        Vertex dv0 = (v1 - v0) * rcp_dy;
-        Vertex dv1 = (v2 - v0) * rcp_dy;
+        VSOut dv0 = (v1 - v0) * rcp_dy;
+        VSOut dv1 = (v2 - v0) * rcp_dy;
 
         // Initialize right edge interpolant
-        Vertex interp_right = v0;
+        VSOut interp_right = v0;
 
         DrawFlatTriangle(v0, v1, v2, dv0, dv1, interp_right);
     }
@@ -130,24 +119,24 @@ struct Pipeline
     //        v2
     //
 
-    void DrawFlatTopTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2)
+    void DrawFlatTopTriangle(const VSOut& v0, const VSOut& v1, const VSOut& v2)
     {
         f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
 
-        Vertex dv0 = (v2 - v0) * rcp_dy;
-        Vertex dv1 = (v2 - v1) * rcp_dy;
+        VSOut dv0 = (v2 - v0) * rcp_dy;
+        VSOut dv1 = (v2 - v1) * rcp_dy;
 
         // Initialize right edge interpolant.
-        Vertex interp_right = v1;
+        VSOut interp_right = v1;
 
         DrawFlatTriangle(v0, v1, v2, dv0, dv1, interp_right);
     }
 
-    void DrawFlatTriangle(const Vertex& v0, const Vertex& v1, const Vertex& v2, const Vertex& dv0,
-        const Vertex& dv1, Vertex interp_right)
+    void DrawFlatTriangle(const VSOut& v0, const VSOut& v1, const VSOut& v2, const VSOut& dv0,
+        const VSOut& dv1, VSOut interp_right)
     {
         // Initialize left edge interpolant.
-        Vertex interp_left = v0;
+        VSOut interp_left = v0;
 
         int y_start = (int)std::ceilf(v0.position.y - 0.5f);
         int y_end = (int)std::ceilf(v2.position.y - 0.5f);
@@ -170,12 +159,12 @@ struct Pipeline
         }
     }
 
-    void DrawScanLine(int y, int start, int end, const Vertex& interp_left, const Vertex& interp_right)
+    void DrawScanLine(int y, int start, int end, const VSOut& interp_left, const VSOut& interp_right)
     {
         f32 dx = interp_right.position.x - interp_left.position.x;
 
-        Vertex d_interp = (interp_right - interp_left) / dx;
-        Vertex interp = interp_left + d_interp * ((f32)start + 0.5f - interp_left.position.x);
+        VSOut d_interp = (interp_right - interp_left) / dx;
+        VSOut interp = interp_left + d_interp * ((f32)start + 0.5f - interp_left.position.x);
 
         for (int x = start; x < end; ++x, interp += d_interp)
         {
@@ -189,7 +178,7 @@ struct Pipeline
         }
     }
 
-    inline static void ToScreenSpace(Vertex* v, f32 half_width, f32 half_height)
+    inline static void ToScreenSpace(VSOut* v, f32 half_width, f32 half_height)
     {
         // NOTE(achal): Since I'm looking down the negative z axis, all the z-coordinates would be negative.
         // We do not want to mirror the x and y coordinates about the y = x line when we do perspective divide
@@ -251,7 +240,9 @@ struct Pipeline
 #endif
 
     Effect effect;
-    glm::mat4 model;
     Framebuffer* framebuffer;
     ZBuffer* z_buffer;
 };
+
+#define PIPELINE_H
+#endif
