@@ -3,6 +3,7 @@
 #include "ColorCubeScene.h"
 #include "CubeSkinScene.h"
 #include "FaceColorCubeScene.h"
+#include "CubeVertexPositionColorScene.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <stb_image/stb_image.h>
@@ -18,7 +19,7 @@
 
 void Engine::Initialize(int width, int height, int channel_count, void* pixels)
 {
-    scene = std::make_unique<FaceColorCubeScene>();
+    scene = std::make_unique<CubeVertexPositionColorScene>();
 
     framebuffer.width = width;
     framebuffer.height = height;
@@ -41,7 +42,7 @@ inline f32 WrapAngle(f32 angle)
 
 void Engine::UpdateModel()
 {
-    f32 angular_speed = PI32 / 2.f;
+    f32 angular_speed = PI32 / 10.f;
     f32 dt = 1.f / 60.f;
     f32 dtheta = angular_speed * dt;
 
