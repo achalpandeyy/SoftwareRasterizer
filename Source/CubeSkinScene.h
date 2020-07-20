@@ -1,24 +1,14 @@
 #ifndef CUBE_SKIN_SCENE_H
 
 #include "Core/Types.h"
+#include "Scene.h"
 #include "IndexedTriangleList.h"
 #include "Pipeline.h"
 #include "TextureEffect.h"
 
 #include <glm/glm.hpp>
 
-// NOTE(achal): Triangle Winding Assumption: Anticlock-wise
-//
-//        v0
-//        /\
-//       /  \
-//      /    \
-//   v1 ------ v2
-//
-// Normal of the triangle is given by: (v1 - v0) x (v2 - v0)
-// Cull the triangle when face normal points in the same direction as view vector (any_point_on_the_triangle - focal_point).
-
-struct CubeSkinScene
+struct CubeSkinScene : public Scene
 {
     typedef Pipeline<TextureEffect> Pipeline;
     typedef Pipeline::Vertex Vertex;
@@ -91,11 +81,28 @@ struct CubeSkinScene
         pipeline.effect.pixel_shader.BindTexture("../Resources/dice_skin.png");
     }
 
+    void Draw() override
+    {
+        pipeline.Draw(it_list);
+    }
+
+    void SetFramebuffer(Framebuffer* framebuffer) override
+    {
+        pipeline.framebuffer = framebuffer;
+    }
+
+    void SetZBuffer(ZBuffer* z_buffer) override
+    {
+        pipeline.z_buffer = z_buffer;
+    }
+
+    void SetModel(const glm::mat4& model) override
+    {
+        pipeline.effect.vertex_shader.model = model;
+    }
+
     IndexedTriangleList<Vertex> it_list;
     Pipeline pipeline;
-    f32 theta_x = 0.f;
-    f32 theta_y = 0.f;
-    f32 theta_z = 0.f;
 };
 
 #define CUBE_SKIN_SCENE_H

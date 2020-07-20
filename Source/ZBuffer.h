@@ -3,7 +3,7 @@
 #include "Core/Types.h"
 
 #include <cassert>
-#include <climits>
+#include <limits>
 
 struct ZBuffer
 {

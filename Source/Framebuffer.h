@@ -17,7 +17,7 @@ struct Framebuffer
 
     inline void Clear()
     {
-        memset(pixels, 0, (size_t)width * (size_t)height * (size_t)channel_count);
+        memset(pixels, 32, (size_t)width * (size_t)height * (size_t)channel_count);
     }
 
     int width;

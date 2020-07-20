@@ -1,10 +1,11 @@
 #ifndef COLOR_CUBE_SCENE_H
 
+#include "Scene.h"
 #include "IndexedTriangleList.h"
 #include "Pipeline.h"
 #include "VertexColorEffect.h"
 
-struct ColorCubeScene
+struct ColorCubeScene : public Scene
 {
     typedef Pipeline<VertexColorEffect> Pipeline;
     typedef Pipeline::Vertex Vertex;
@@ -65,12 +66,28 @@ struct ColorCubeScene
 
     }
 
+    void Draw() override
+    {
+        pipeline.Draw(it_list);
+    }
+
+    void SetFramebuffer(Framebuffer* framebuffer) override
+    {
+        pipeline.framebuffer = framebuffer;
+    }
+
+    void SetZBuffer(ZBuffer* z_buffer) override
+    {
+        pipeline.z_buffer = z_buffer;
+    }
+
+    void SetModel(const glm::mat4& model) override
+    {
+        pipeline.effect.vertex_shader.model = model;
+    }
+
     IndexedTriangleList<Vertex> it_list;
     Pipeline pipeline;
-
-    f32 theta_x = 0.f;
-    f32 theta_y = 0.f;
-    f32 theta_z = 0.f;
 };
 
 #define COLOR_CUBE_SCENE_H
