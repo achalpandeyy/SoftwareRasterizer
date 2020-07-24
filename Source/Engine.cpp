@@ -4,6 +4,7 @@
 #include "CubeSkinScene.h"
 #include "FaceColorCubeScene.h"
 #include "CubeVertexPositionColorScene.h"
+#include "WavyPlaneScene.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <stb_image/stb_image.h>
@@ -19,7 +20,7 @@
 
 void Engine::Initialize(int width, int height, int channel_count, void* pixels)
 {
-    scene = std::make_unique<CubeVertexPositionColorScene>();
+    scene = std::make_unique<WavyPlaneScene>();
 
     framebuffer.width = width;
     framebuffer.height = height;

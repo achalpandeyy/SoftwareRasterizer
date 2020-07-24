@@ -20,7 +20,7 @@ struct ZBuffer
         }
     }
 
-    inline b32 TestAndSet(int x, int y, f32 z)
+    inline b32 TestAndSet(u32 x, u32 y, f32 z)
     {
         assert(x >= 0 && x < width);
         assert(y >= 0 && y < height);

@@ -5,6 +5,7 @@
 #include "Framebuffer.h"
 #include "ZBuffer.h"
 #include "Texture.h"
+#include "Triangle.h"
 
 #include <glm/glm.hpp>
 #include <algorithm>
@@ -17,6 +18,7 @@ struct Pipeline
 {
     typedef typename Effect::Vertex Vertex;
     typedef typename Effect::VertexShader::VertexOut VSOut;
+    typedef typename Effect::GeometryShader::VertexOut GSOut;
 
     void Draw(const IndexedTriangleList<Vertex>& it_list)
     {
@@ -27,7 +29,7 @@ struct Pipeline
         std::transform(it_list.vertices.begin(), it_list.vertices.end(), transformed_vertices.begin(), effect.vertex_shader);
 
         // Assemble Triangles
-        for (int i = 0; i < it_list.indices.size() / 3; ++i)
+        for (size_t i = 0; i < it_list.indices.size() / 3; ++i)
         {
             size_t idx0 = it_list.indices[3 * i];
             size_t idx1 = it_list.indices[3 * i + 1];
@@ -37,17 +39,28 @@ struct Pipeline
             VSOut v1 = transformed_vertices[idx1];
             VSOut v2 = transformed_vertices[idx2];
 
-            // World (View) Space to Screen Space
-            ToScreenSpace(&v0, half_width, half_height);
-            ToScreenSpace(&v1, half_width, half_height);
-            ToScreenSpace(&v2, half_width, half_height);
+            b32 should_cull = (glm::dot(glm::cross(v1.position - v0.position, v2.position - v0.position), v1.position)) >= 0;
 
-            DrawTriangle(&v0, &v1, &v2);
+            if (!should_cull)
+            {
+                Triangle<GSOut> triangle = effect.geometry_shader(&v0, &v1, &v2, i);
+
+                // World (View) Space to Screen Space
+                ToScreenSpace(&triangle.v0, half_width, half_height);
+                ToScreenSpace(&triangle.v1, half_width, half_height);
+                ToScreenSpace(&triangle.v2, half_width, half_height);
+
+                DrawTriangle(&triangle);
+            }
         }
     }
 
-    void DrawTriangle(VSOut* v0, VSOut* v1, VSOut* v2)
+    void DrawTriangle(Triangle<GSOut>* triangle)
     {
+        VSOut* v0 = &triangle->v0;
+        VSOut* v1 = &triangle->v1;
+        VSOut* v2 = &triangle->v2;
+
         // NOTE(achal): Sort the vertices so that v0 will be at the top (lowest y) and v2 will be at the bottom (highest y).
         if (v0->position.y > v1->position.y) std::swap(v0, v1);
         if (v1->position.y > v2->position.y) std::swap(v1, v2);
@@ -97,15 +110,15 @@ struct Pipeline
     //      /    \
     //   v1 ------ v2
 
-    void DrawFlatBottomTriangle(const VSOut& v0, const VSOut& v1, const VSOut& v2)
+    void DrawFlatBottomTriangle(const GSOut& v0, const GSOut& v1, const GSOut& v2)
     {
         f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
 
-        VSOut dv0 = (v1 - v0) * rcp_dy;
-        VSOut dv1 = (v2 - v0) * rcp_dy;
+        GSOut dv0 = (v1 - v0) * rcp_dy;
+        GSOut dv1 = (v2 - v0) * rcp_dy;
 
         // Initialize right edge interpolant
-        VSOut interp_right = v0;
+        GSOut interp_right = v0;
 
         DrawFlatTriangle(v0, v1, v2, dv0, dv1, interp_right);
     }
@@ -119,24 +132,24 @@ struct Pipeline
     //        v2
     //
 
-    void DrawFlatTopTriangle(const VSOut& v0, const VSOut& v1, const VSOut& v2)
+    void DrawFlatTopTriangle(const GSOut& v0, const GSOut& v1, const GSOut& v2)
     {
         f32 rcp_dy = 1.f / (v2.position.y - v0.position.y);
 
-        VSOut dv0 = (v2 - v0) * rcp_dy;
-        VSOut dv1 = (v2 - v1) * rcp_dy;
+        GSOut dv0 = (v2 - v0) * rcp_dy;
+        GSOut dv1 = (v2 - v1) * rcp_dy;
 
         // Initialize right edge interpolant.
-        VSOut interp_right = v1;
+        GSOut interp_right = v1;
 
         DrawFlatTriangle(v0, v1, v2, dv0, dv1, interp_right);
     }
 
-    void DrawFlatTriangle(const VSOut& v0, const VSOut& v1, const VSOut& v2, const VSOut& dv0,
-        const VSOut& dv1, VSOut interp_right)
+    void DrawFlatTriangle(const GSOut& v0, const GSOut& v1, const GSOut& v2, const GSOut& dv0,
+        const GSOut& dv1, GSOut interp_right)
     {
         // Initialize left edge interpolant.
-        VSOut interp_left = v0;
+        GSOut interp_left = v0;
 
         int y_start = (int)std::ceilf(v0.position.y - 0.5f);
         int y_end = (int)std::ceilf(v2.position.y - 0.5f);
@@ -159,12 +172,12 @@ struct Pipeline
         }
     }
 
-    void DrawScanLine(int y, int start, int end, const VSOut& interp_left, const VSOut& interp_right)
+    void DrawScanLine(int y, int start, int end, const GSOut& interp_left, const GSOut& interp_right)
     {
         f32 dx = interp_right.position.x - interp_left.position.x;
 
-        VSOut d_interp = (interp_right - interp_left) / dx;
-        VSOut interp = interp_left + d_interp * ((f32)start + 0.5f - interp_left.position.x);
+        GSOut d_interp = (interp_right - interp_left) / dx;
+        GSOut interp = interp_left + d_interp * ((f32)start + 0.5f - interp_left.position.x);
 
         for (int x = start; x < end; ++x, interp += d_interp)
         {

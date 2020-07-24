@@ -2,6 +2,8 @@
 
 #include "Core/Types.h"
 #include "DefaultVertexShader.h"
+#include "DefaultGeometryShader.h"
+#include "Triangle.h"
 
 #include <glm/glm.hpp>
 
@@ -20,6 +22,7 @@ struct VertexColorEffect
     };
 
     typedef DefaultVertexShader<Vertex> VertexShader;
+    typedef DefaultGeometryShader<VertexShader::VertexOut> GeometryShader;
 
     struct PixelShader
     {
@@ -36,6 +39,7 @@ struct VertexColorEffect
     };
 
     VertexShader vertex_shader;
+    GeometryShader geometry_shader;
     PixelShader pixel_shader;
 };
 

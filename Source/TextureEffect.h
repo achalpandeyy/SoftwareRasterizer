@@ -3,6 +3,7 @@
 #include "Core/Types.h"
 #include "Texture.h"
 #include "DefaultVertexShader.h"
+#include "DefaultGeometryShader.h"
 
 #include <stb_image/stb_image.h>
 #include <glm/glm.hpp>
@@ -24,6 +25,7 @@ struct TextureEffect
     };
 
     typedef DefaultVertexShader<Vertex> VertexShader;
+    typedef DefaultGeometryShader<VertexShader::VertexOut> GeometryShader;
 
     struct PixelShader
     {
@@ -44,6 +46,7 @@ struct TextureEffect
     };
 
     VertexShader vertex_shader;
+    GeometryShader geometry_shader;
     PixelShader pixel_shader;
 };
 

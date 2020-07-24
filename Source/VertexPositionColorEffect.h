@@ -1,6 +1,7 @@
 #ifndef VERTEX_POSITION_COLOR_EFFECT_H
 
 #include "Core/Types.h"
+#include "DefaultGeometryShader.h"
 
 #include <glm/glm.hpp>
 
@@ -32,6 +33,8 @@ struct VertexPositionColorEffect
         glm::mat4 model;
     };
 
+    typedef DefaultGeometryShader<VertexShader::VertexOut> GeometryShader;
+
     struct PixelShader
     {
         template <typename Input>
@@ -47,6 +50,7 @@ struct VertexPositionColorEffect
     };
 
     VertexShader vertex_shader;
+    GeometryShader geometry_shader;
     PixelShader pixel_shader;
 };
 
